@@ -10,18 +10,22 @@ from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 from langgraph.graph import END, StateGraph
 # For State Graph 
 from typing_extensions import TypedDict
+from dotenv import load_dotenv
 import os
 
+load_dotenv()
 
 class ChatModule:
     def __init__(self):
         # Defining LLM
         # 중요: 딱히 llama3가 아니여도 동작함. 검색요약 결과가 다를뿐임
-        #local_llm = 'llama2'
         #local_llm = 'llama3'
-        local_llm = 'openhermes'
-        self.llama3 = ChatOllama(model=local_llm, temperature=0)
-        self.llama3_json = ChatOllama(model=local_llm, format='json', temperature=0)
+        #base_url = 'http://localhost:11434'
+        local_llm = os.getenv('LOCAL_LLM')
+        base_url = os.getenv('BASE_URL')
+        
+        self.llama3 = ChatOllama(base_url=base_url, model=local_llm, temperature=0)
+        self.llama3_json = ChatOllama(base_url=base_url, model=local_llm, format='json', temperature=0)
 
         self.wrapper = DuckDuckGoSearchAPIWrapper(max_results=25)
         self.web_search_tool = DuckDuckGoSearchRun(api_wrapper=self.wrapper)
@@ -226,8 +230,8 @@ class ChatModule:
 
     def run_agent(self, query):
         output = self.local_agent.invoke({"question": query})
-        print("=======")
         print(output["generation"])
+        return output
         #print(output)
         #display(Markdown(output["generation"]))
 
