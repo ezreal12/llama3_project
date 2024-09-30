@@ -10,20 +10,20 @@ from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 from langgraph.graph import END, StateGraph
 # For State Graph 
 from typing_extensions import TypedDict
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
 
 class ChatModule:
     def __init__(self):
         # Defining LLM
         # 중요: 딱히 llama3가 아니여도 동작함. 검색요약 결과가 다를뿐임
-        #local_llm = 'llama3'
-        #base_url = 'http://localhost:11434'
-        local_llm = os.getenv('LOCAL_LLM')
-        base_url = os.getenv('BASE_URL')
+        local_llm = "bnksys/kullm3-11b:latest"
+        context_local_llm_name = 'bnksys/kullm3-11b:latest'
+        base_url = 'http://localhost:11434'
+        print(f'base_url: {base_url}')
+        print(f'local_llm: {local_llm}')
+        print(f'context_local_llm_name: {context_local_llm_name}')
+
         
+        self.context_llm = ChatOllama(base_url=base_url, model=context_local_llm_name, temperature=0)
         self.llama3 = ChatOllama(base_url=base_url, model=local_llm, temperature=0)
         self.llama3_json = ChatOllama(base_url=base_url, model=local_llm, format='json', temperature=0)
 
@@ -58,7 +58,7 @@ class ChatModule:
         )
 
         # Chain
-        self.generate_chain = self.generate_prompt | self.llama3 | StrOutputParser()
+        self.generate_chain = self.generate_prompt | self.context_llm | StrOutputParser()
 
         # Router
         self.router_prompt = PromptTemplate(
@@ -205,6 +205,7 @@ class ChatModule:
         
         # Web search tool call
         search_result = self.web_search_tool.invoke(search_query)
+        print(f': 검색 완료 "{search_result}"')
         return {"context": search_result}
 
     def route_question(self, state):
