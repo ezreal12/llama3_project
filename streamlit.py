@@ -7,7 +7,7 @@ if 'messages' not in st.session_state:
 
 chat_module = cm.ChatModule()
 st.title("Multi-agent function call")
-st.subheader("융합데이터과학대학원 지원자 박희수")
+st.subheader("박희수 작성")
 
 # 사용자 입력 처리 함수
 def handle_user_input():
