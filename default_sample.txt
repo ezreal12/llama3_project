@@ -1,0 +1,72 @@
+구조 
+
+1. LLM 정의
+같은 LLAMA 3를 쓰지만, json 양식으로 답변을 뱉는 LLM 모델을 하나 더 정의한다.
+
+llama3 = ChatOllama(model="llama3", temperature=0)
+llama3_json = ChatOllama(model="llama3", format='json', temperature=0)
+
+
+2. langgraph의 LLM function call 구조
+- 사용자의 질문(question)을 기반으로 어떤 기능이 필요한지 키워드만 뱉는 라우터용 LLM 정의 (json 출력)
+이번 예 : 
+현재 컴퓨터의 하드디스크 용량 조회가 필요하면 get_disc
+현재 서버 시간을 체크해야하면 get_date_time
+그외의 답변이 필요하면 generate
+
+이러한 키워드는 랭그래프 StateGraph 컴파일시에 연결구조로 사용된다.
+langgraph에서 add_node를 호출하여 LLM이 쓸수있는 function을 str key와 같이 정의하고 (여기는 순서 상관 X)
+workflow.add_node("get_date_time", get_date_time)
+workflow.add_node("get_disc", get_disc)
+workflow.add_node("generate", generate)
+
+이후 set_conditional_entry_point에서 "route_question" function을 통해 LLM이 직접 get_date_time,get_disc,generate
+중에서 1가지를 뱉고 이렇게 LLM이 뱉은 키워드를 str key , 거기에 연결되는 add_node의 key로 function이 실행된다.
+workflow.set_conditional_entry_point(
+    route_question,
+    {
+        "get_date_time": "get_date_time",
+        "get_disc": "get_disc",
+        "generate": "generate",
+    },
+)
+
+이렇게 각 node로 진입하고 결과가 나온 이후에 연결될 node를 지정할 수 있는데 END를 박아버리면 거기서 채팅은 멈춘다.
+
+workflow.add_edge("get_date_time", END)
+workflow.add_edge("get_disc", END)
+workflow.add_edge("generate", END)
+
+만약 다른 연결이 필요한경우
+
+workflow = StateGraph(GraphState)
+workflow.add_node("websearch", web_search)
+workflow.add_node("transform_query", transform_query)
+workflow.add_node("generate", generate)
+
+workflow.set_conditional_entry_point(
+    route_question,
+    {
+        "websearch": "transform_query",
+        "generate": "generate",
+    },
+)
+workflow.add_edge("transform_query", "websearch")
+workflow.add_edge("websearch", "generate")
+workflow.add_edge("generate", END)
+
+
+3. TypedDict를 상속받는 클래스 정의
+각 node에 들어가는 변수들을 정의한다.
+이때 각 변수들은 타입을 지정해줘야 한다.
+question = state['question']
+output = question_router.invoke({"question": question})
+return {"generation": generation}
+
+class GraphState(TypedDict):
+    question: str
+    generation: str
+    datetime_info: str
+    disk_info: str
+
+    
